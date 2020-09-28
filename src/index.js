@@ -31,8 +31,6 @@ const { argv } = require("yargs")
     default: 1,
   });
 
-require("intl");
-
 const shell = require("shelljs");
 const fs = require("fs");
 const { promisify } = require("util");
@@ -107,6 +105,16 @@ async function checkoutCommit(commit) {
   await git.checkout(commit);
 }
 
+async function getCurrentCommitInfo() {
+  const git = simpleGit({
+    baseDir: shell.pwd().stdout,
+  });
+
+  const commits = await git.log();
+
+  return commits.latest;
+}
+
 async function writeOutput(outputDirectory, output) {
   const outputFilePath = path.join(outputDirectory, "output.json");
 
@@ -141,7 +149,9 @@ async function run() {
 
     const buildSize = await evaluteBuildSize(zipPath);
 
-    output.push({ commit, buildSize });
+    const commitInfo = await getCurrentCommitInfo();
+
+    output.push({ ...commitInfo, buildSize });
   }
 
   await writeOutput(outputDirectory, output);
