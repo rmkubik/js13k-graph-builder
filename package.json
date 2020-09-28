@@ -10,6 +10,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "chalk": "^4.1.0",
+    "common-tags": "^1.8.0",
     "intl": "^1.2.5",
     "shelljs": "^0.8.4",
     "yargs": "^16.0.3"
