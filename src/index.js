@@ -62,10 +62,10 @@ async function buildProject(buildCommand) {
   console.log(
     stripIndents(chalk`
       {blue {bold Installing dependencies}}
-      {blue Command: } npm install
+      {blue Command: } npm ci
     `)
   );
-  shell.exec("npm install");
+  shell.exec("npm ci");
 
   // run build command
   console.log(
