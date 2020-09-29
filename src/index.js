@@ -48,6 +48,7 @@ const { stripIndents } = require("common-tags");
 const simpleGit = require("simple-git");
 const ora = require("ora");
 const spinner = ora();
+const generateReportFileContents = require("./generateReport");
 
 function promisifyReadlineQuestion(rl) {
   rl.question[promisify.custom] = (question) => {
@@ -160,7 +161,7 @@ async function checkoutCommit(commit) {
     baseDir: shell.pwd().stdout,
   });
 
-  await git.checkout(commit);
+  await git.checkout(commit, ["-f"]);
 }
 
 async function getCurrentCommitInfo() {
@@ -174,17 +175,28 @@ async function getCurrentCommitInfo() {
 }
 
 async function writeOutput(outputDirectory, output) {
-  const outputFilePath = path.join(outputDirectory, "output.json");
+  const outputJsonFilePath = path.join(outputDirectory, "output.json");
   startSpinner(
     stripIndents(chalk`
       {blue {bold Writing output results file}}
-      {blue Output file: } ${outputFilePath}
+      {blue Output file: } ${outputJsonFilePath}
     `)
   );
+  await writeFile(outputJsonFilePath, JSON.stringify(output, undefined, 2));
+  endSpinner(true, chalk`{blue Wrote output file: } ${outputJsonFilePath}`);
 
-  await writeFile(outputFilePath, JSON.stringify(output, undefined, 2));
+  // --- second output file ---
 
-  endSpinner(true, chalk`{blue Wrote output file: } ${outputFilePath}`);
+  const outputReportFilePath = path.join(outputDirectory, "report.html");
+  startSpinner(
+    stripIndents(chalk`
+      {blue {bold Writing output report file}}
+      {blue Output file: } ${outputReportFilePath}
+    `)
+  );
+  const reportFileContents = await generateReportFileContents(output);
+  await writeFile(outputReportFilePath, reportFileContents);
+  endSpinner(true, chalk`{blue Wrote report file: } ${outputReportFilePath}`);
 }
 
 async function promptConfirmation({
@@ -227,7 +239,7 @@ async function checkoutBranch(branchName) {
     baseDir: shell.pwd().stdout,
   });
 
-  await git.checkout(branchName);
+  await git.checkout(branchName, ["-f"]);
 }
 
 async function getCurrentBranch() {
