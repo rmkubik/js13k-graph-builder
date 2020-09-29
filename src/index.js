@@ -46,6 +46,8 @@ const path = require("path");
 const chalk = require("chalk");
 const { stripIndents } = require("common-tags");
 const simpleGit = require("simple-git");
+const ora = require("ora");
+const spinner = ora();
 
 function promisifyReadlineQuestion(rl) {
   rl.question[promisify.custom] = (question) => {
@@ -72,42 +74,63 @@ async function prompt(question) {
   return response;
 }
 
+function execAsync(cmd, opts = {}) {
+  return new Promise(function (resolve, reject) {
+    // Execute the command, reject if we exit non-zero (i.e. error)
+    shell.exec(cmd, opts, function (code, stdout, stderr) {
+      if (code != 0) return reject(new Error(stderr));
+      return resolve(stdout);
+    });
+  });
+}
+
+async function startSpinner(message) {
+  return spinner.start(message);
+}
+
+async function endSpinner(success, message) {
+  spinner.stopAndPersist({
+    symbol: success ? "✅" : "❌",
+    text: message,
+  });
+}
+
 async function buildProject(buildCommand, verbose) {
   // TODO: allow arbitrary array of commands via a config file
 
   // clean node_modules
   const nodeModulesPath = "node_modules";
 
+  startSpinner(
+    stripIndents(chalk`
+      {blue {bold Cleaning installation directory}}
+      {blue Command: } rm -rf ${nodeModulesPath}
+    `)
+  );
   if (fs.existsSync(nodeModulesPath)) {
-    console.log(
-      stripIndents(chalk`
-        {blue {bold Cleaning installation directory}}
-        {blue Command: } rm -rf ${nodeModulesPath}
-      `)
-    );
-    console.log("");
-    shell.rm("-rf", nodeModulesPath);
+    await execAsync(`rm -rf ${nodeModulesPath}`, { silent: !verbose });
   }
+  endSpinner(true, chalk.blue("Cleaned installation directory"));
 
   // do npm install
-  console.log(
+  startSpinner(
     stripIndents(chalk`
       {blue {bold Installing dependencies}}
       {blue Command: } npm ci
     `)
   );
-  console.log("");
-  shell.exec("npm ci", { silent: !verbose });
+  await execAsync("npm ci", { silent: !verbose });
+  endSpinner(true, chalk.blue("Installed dependencies"));
 
   // run build command
-  console.log(
+  startSpinner(
     stripIndents(chalk`
       {blue {bold Building project}}
       {blue Command: } ${buildCommand}
     `)
   );
-  console.log("");
-  shell.exec(buildCommand, { silent: !verbose });
+  await execAsync(buildCommand, { silent: !verbose });
+  endSpinner(true, chalk.blue("Built project"));
 }
 
 async function evaluteBuildSize(zipPath) {
@@ -152,8 +175,16 @@ async function getCurrentCommitInfo() {
 
 async function writeOutput(outputDirectory, output) {
   const outputFilePath = path.join(outputDirectory, "output.json");
+  startSpinner(
+    stripIndents(chalk`
+      {blue {bold Writing output results file}}
+      {blue Output file: } ${outputFilePath}
+    `)
+  );
 
   await writeFile(outputFilePath, JSON.stringify(output, undefined, 2));
+
+  endSpinner(true, chalk.blue("Wrote output file"));
 }
 
 async function promptConfirmation({
