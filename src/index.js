@@ -79,6 +79,7 @@ async function buildProject(buildCommand) {
         {blue Command: } rm -rf ${nodeModulesPath}
       `)
     );
+    console.log("");
     shell.rm("-rf", nodeModulesPath);
   }
 
@@ -89,6 +90,7 @@ async function buildProject(buildCommand) {
       {blue Command: } npm ci
     `)
   );
+  console.log("");
   shell.exec("npm ci");
 
   // run build command
@@ -98,6 +100,7 @@ async function buildProject(buildCommand) {
       {blue Command: } ${buildCommand}
     `)
   );
+  console.log("");
   shell.exec(buildCommand);
 }
 
@@ -109,7 +112,7 @@ async function evaluteBuildSize(zipPath) {
 
 async function getCommitList() {
   if (!shell.which("git")) {
-    console.log("Sorry, this script requires git!");
+    console.log("Sorry, this script requires git!\n");
     return [];
   }
 
@@ -167,17 +170,18 @@ async function promptConfirmation({
       `
     )
   );
+  console.log("");
 
   const response = await prompt(
     chalk`Do you want to proceed? ({green y}/{red N}): `
   );
 
   if (response.toLowerCase() === "y") {
-    console.log(chalk.green("Recieved confirmation. Proceeding!"));
+    console.log(chalk.green("Recieved confirmation. Proceeding!\n"));
     return true;
   }
 
-  console.log(chalk.red("Did not recieve confirmation. Aborting!"));
+  console.log(chalk.red("Did not recieve confirmation. Aborting!\n"));
   return false;
 }
 
@@ -238,7 +242,6 @@ async function run() {
     await buildProject(buildCommand);
 
     const buildSize = await evaluteBuildSize(zipPath);
-
     const commitInfo = await getCurrentCommitInfo();
 
     output.push({ ...commitInfo, buildSize });
