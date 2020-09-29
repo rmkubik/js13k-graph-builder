@@ -32,13 +32,39 @@ const { argv } = require("yargs")
   });
 
 const shell = require("shelljs");
-const fs = require("fs");
 const { promisify } = require("util");
+const fs = require("fs");
+const readline = require("readline");
 const writeFile = promisify(fs.writeFile);
 const path = require("path");
 const chalk = require("chalk");
 const { stripIndents } = require("common-tags");
 const simpleGit = require("simple-git");
+
+function promisifyReadlineQuestion(rl) {
+  rl.question[promisify.custom] = (question) => {
+    return new Promise((resolve) => {
+      rl.question(question, resolve);
+    });
+  };
+
+  return promisify(rl.question);
+}
+
+async function prompt(question) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const readlineAsync = promisifyReadlineQuestion(rl);
+
+  const response = await readlineAsync(question);
+
+  rl.close();
+
+  return response;
+}
 
 async function buildProject(buildCommand) {
   // TODO: allow arbitrary array of commands via a config file
@@ -83,8 +109,8 @@ async function evaluteBuildSize(zipPath) {
 
 async function getCommitList() {
   if (!shell.which("git")) {
-    shell.echo("Sorry, this script requires git");
-    shell.exit(1);
+    console.log("Sorry, this script requires git!");
+    return [];
   }
 
   const git = simpleGit({
@@ -121,6 +147,56 @@ async function writeOutput(outputDirectory, output) {
   await writeFile(outputFilePath, JSON.stringify(output, undefined, 2));
 }
 
+async function promptConfirmation({
+  buildCommand,
+  buildPath,
+  projectDirectory,
+  outputPath,
+  branchName,
+  commits,
+}) {
+  console.log(
+    stripIndents(
+      chalk`
+        {blue Project directory:} ${projectDirectory}
+        {blue Current branch:} ${branchName}
+        {blue Found commit count:} ${commits.length}
+        {blue Build command:} ${buildCommand}
+        {blue Build output zip:} ${buildPath}
+        {blue Information output location:} ${outputPath}
+      `
+    )
+  );
+
+  const response = await prompt(
+    chalk`Do you want to proceed? ({green y}/{red N}): `
+  );
+
+  if (response.toLowerCase() === "y") {
+    console.log(chalk.green("Recieved confirmation. Proceeding!"));
+    return true;
+  }
+
+  console.log(chalk.red("Did not recieve confirmation. Aborting!"));
+  return false;
+}
+
+async function checkoutBranch(branchName) {
+  const git = simpleGit({
+    baseDir: shell.pwd().stdout,
+  });
+
+  await git.checkout(branchName);
+}
+
+async function getCurrentBranch() {
+  const git = simpleGit({
+    baseDir: shell.pwd().stdout,
+  });
+
+  return (await git.branch()).current;
+}
+
 async function run() {
   const {
     zipPath,
@@ -132,12 +208,26 @@ async function run() {
 
   shell.cd(projectDirectory);
 
+  const branchName = await getCurrentBranch();
   const commits = await getCommitList();
 
   // limit amount of commits used in output
   // commitLimit 0 means show all commits
   if (commitLimit !== 0) {
     commits.splice(commitLimit);
+  }
+
+  const confirmation = await promptConfirmation({
+    buildCommand,
+    buildPath: path.join(projectDirectory, zipPath),
+    projectDirectory,
+    outputPath: path.join(outputDirectory, "output.json"),
+    branchName,
+    commits,
+  });
+
+  if (!confirmation) {
+    return;
   }
 
   const output = [];
@@ -153,6 +243,8 @@ async function run() {
 
     output.push({ ...commitInfo, buildSize });
   }
+
+  await checkoutBranch(branchName);
 
   await writeOutput(outputDirectory, output);
 }
