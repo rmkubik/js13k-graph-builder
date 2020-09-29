@@ -29,6 +29,12 @@ const { argv } = require("yargs")
     description:
       "How many previous commits to calculate. Use 0 to show all commits.",
     default: 1,
+  })
+  .option("verbose", {
+    alias: "v",
+    type: "boolean",
+    description: "Should command outputs be sent to terminal.",
+    default: false,
   });
 
 const shell = require("shelljs");
@@ -66,7 +72,7 @@ async function prompt(question) {
   return response;
 }
 
-async function buildProject(buildCommand) {
+async function buildProject(buildCommand, verbose) {
   // TODO: allow arbitrary array of commands via a config file
 
   // clean node_modules
@@ -91,7 +97,7 @@ async function buildProject(buildCommand) {
     `)
   );
   console.log("");
-  shell.exec("npm ci");
+  shell.exec("npm ci", { silent: !verbose });
 
   // run build command
   console.log(
@@ -101,7 +107,7 @@ async function buildProject(buildCommand) {
     `)
   );
   console.log("");
-  shell.exec(buildCommand);
+  shell.exec(buildCommand, { silent: !verbose });
 }
 
 async function evaluteBuildSize(zipPath) {
@@ -206,8 +212,9 @@ async function run() {
     zipPath,
     buildCommand,
     projectDirectory,
-    outputDirectory, // default to cwd for output
+    outputDirectory,
     commitLimit,
+    verbose,
   } = argv;
 
   shell.cd(projectDirectory);
@@ -239,7 +246,7 @@ async function run() {
   for (commit of commits) {
     await checkoutCommit(commit);
 
-    await buildProject(buildCommand);
+    await buildProject(buildCommand, verbose);
 
     const buildSize = await evaluteBuildSize(zipPath);
     const commitInfo = await getCurrentCommitInfo();
