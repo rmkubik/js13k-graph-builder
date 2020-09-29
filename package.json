@@ -13,7 +13,9 @@
     "chalk": "^4.1.0",
     "common-tags": "^1.8.0",
     "intl": "^1.2.5",
+    "log-update": "^4.0.0",
     "ora": "^5.1.0",
+    "parcel-bundler": "^1.12.4",
     "shelljs": "^0.8.4",
     "simple-git": "^2.20.1",
     "yargs": "^16.0.3"

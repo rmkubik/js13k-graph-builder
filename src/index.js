@@ -84,11 +84,11 @@ function execAsync(cmd, opts = {}) {
   });
 }
 
-async function startSpinner(message) {
+function startSpinner(message) {
   return spinner.start(message);
 }
 
-async function endSpinner(success, message) {
+function endSpinner(success, message) {
   spinner.stopAndPersist({
     symbol: success ? "✅" : "❌",
     text: message,
@@ -184,7 +184,7 @@ async function writeOutput(outputDirectory, output) {
 
   await writeFile(outputFilePath, JSON.stringify(output, undefined, 2));
 
-  endSpinner(true, chalk.blue("Wrote output file"));
+  endSpinner(true, chalk`{blue Wrote output file: } ${outputFilePath}`);
 }
 
 async function promptConfirmation({
@@ -214,11 +214,11 @@ async function promptConfirmation({
   );
 
   if (response.toLowerCase() === "y") {
-    console.log(chalk.green("Recieved confirmation. Proceeding!\n"));
+    console.log(chalk.green("Recieved confirmation. Proceeding!"));
     return true;
   }
 
-  console.log(chalk.red("Did not recieve confirmation. Aborting!\n"));
+  console.log(chalk.red("Did not recieve confirmation. Aborting!"));
   return false;
 }
 
@@ -274,7 +274,11 @@ async function run() {
 
   const output = [];
 
-  for (commit of commits) {
+  for (let index = 0; index < commits.length; index += 1) {
+    const commit = commits[index];
+
+    console.log(`\nEvaluating commit ${index + 1}/${commits.length}`);
+
     await checkoutCommit(commit);
 
     await buildProject(buildCommand, verbose);
@@ -285,7 +289,18 @@ async function run() {
     output.push({ ...commitInfo, buildSize });
   }
 
+  console.log(`\nFinished evaluating commits`);
+
+  startSpinner(
+    stripIndents(chalk`
+      {blue {bold Checking out original branch}}
+      {blue Branch: } ${branchName}
+    `)
+  );
+
   await checkoutBranch(branchName);
+
+  endSpinner(true, chalk`{blue Returned to original branch: } ${branchName}`);
 
   await writeOutput(outputDirectory, output);
 }
